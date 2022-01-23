@@ -31,7 +31,7 @@ public class HttpTriggerFunction {
         context.getLogger().info("Java HTTP trigger processed a request.");
 
         // Parse query parameter
-        final String query = request.getQueryParameters().get("name");
+        final String query = request.getQueryParameters().get("faceId");
         final String name = request.getBody().orElse(query);
 
         if (name == null) {
