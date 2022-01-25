@@ -40,12 +40,21 @@ public class HttpTriggerFunction {
     if (request.getBody().isPresent()) {
       UnauthorizedDetection unauthorizedDetection = new Gson().fromJson(request.getBody().get(), UnauthorizedDetection.class);
       unauthorizedDetection.setDetectionTime(LocalDateTime.now());
+      context.getLogger()
+        .info(String.format("Unauthorized detection with faceId: %s, filename: %s", unauthorizedDetection.getFaceId(),
+          unauthorizedDetection.getId()));
+
       unauthorizedAccessPersistenceService.createDetection(unauthorizedDetection);
+      context.getLogger().info("Registered unauthorized detection");
+
       administratorPersistenceService.readAll()
         .stream()
         .forEach(admin -> notifyAdministrator(unauthorizedDetection, admin.getEmailAddress()));
+      context.getLogger().info("Sent email notification to administrators");
+
       return request.createResponseBuilder(HttpStatus.OK).build();
     }
+    context.getLogger().info("Request body is not present");
     return request.createResponseBuilder(HttpStatus.BAD_REQUEST).body("Request body is mandatory").build();
   }
 
