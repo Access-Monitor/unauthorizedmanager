@@ -1,13 +1,15 @@
 package cloudcomputing.accessmonitor.unauthorizedmanager;
 
-import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.HttpConstants.Headers.FACE_ID_HEADER;
-import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.HttpConstants.Headers.FILENAME_HEADER;
+import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.MailConstants.MAIL_SUBJECT;
 
 import cloudcomputing.accessmonitor.unauthorizedmanager.model.persistence.UnauthorizedDetection;
+import cloudcomputing.accessmonitor.unauthorizedmanager.service.AdministratorPersistenceService;
 import cloudcomputing.accessmonitor.unauthorizedmanager.service.MailService;
-import cloudcomputing.accessmonitor.unauthorizedmanager.service.PersistenceService;
+import cloudcomputing.accessmonitor.unauthorizedmanager.service.UnauthorizedAccessPersistenceService;
+import cloudcomputing.accessmonitor.unauthorizedmanager.service.impl.AdministratorPersistenceServiceImpl;
 import cloudcomputing.accessmonitor.unauthorizedmanager.service.impl.MailServiceImpl;
-import cloudcomputing.accessmonitor.unauthorizedmanager.service.impl.PersistenceServiceCosmosDBImpl;
+import cloudcomputing.accessmonitor.unauthorizedmanager.service.impl.UnauthorizedAccessPersistenceServiceImpl;
+import com.google.gson.Gson;
 import com.microsoft.azure.functions.ExecutionContext;
 import com.microsoft.azure.functions.HttpMethod;
 import com.microsoft.azure.functions.HttpRequestMessage;
@@ -17,6 +19,7 @@ import com.microsoft.azure.functions.annotation.AuthorizationLevel;
 import com.microsoft.azure.functions.annotation.FunctionName;
 import com.microsoft.azure.functions.annotation.HttpTrigger;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -24,25 +27,46 @@ import javax.mail.MessagingException;
 
 public class HttpTriggerFunction {
 
-  private final PersistenceService persistenceService = new PersistenceServiceCosmosDBImpl();
+  private final UnauthorizedAccessPersistenceService unauthorizedAccessPersistenceService =
+    new UnauthorizedAccessPersistenceServiceImpl();
+  private final AdministratorPersistenceService administratorPersistenceService = new AdministratorPersistenceServiceImpl();
   private final MailService mailService = new MailServiceImpl();
 
   @FunctionName("unauthorized")
-  public HttpResponseMessage run(@HttpTrigger(name = "req", methods = {HttpMethod.GET}, authLevel = AuthorizationLevel.FUNCTION)
-                                   HttpRequestMessage<Optional<String>> request, final ExecutionContext context)
-    throws MessagingException, IOException {
+  public HttpResponseMessage run(@HttpTrigger(name = "req", methods = {HttpMethod.POST}, authLevel = AuthorizationLevel.FUNCTION)
+                                   HttpRequestMessage<Optional<String>> request, final ExecutionContext context) {
     context.getLogger().info("Java HTTP trigger processed a request.");
 
-    final String faceId = request.getQueryParameters().get(FACE_ID_HEADER);
-    final String filename = request.getQueryParameters().get(FILENAME_HEADER);
-    UnauthorizedDetection unauthorizedDetection = new UnauthorizedDetection(filename, faceId, LocalDateTime.now());
-    persistenceService.createDetection(unauthorizedDetection);
-    mailService.withDestinationAddress("leocapuano0@gmail.com")
-      .withSubject("Oggetto Mail")
-      .withBodyText("Rilevato " + unauthorizedDetection.getFaceId() + " alle ore " + unauthorizedDetection.getDetectionTime())
-      .withAttachment(new File("D:\\A-Immagini\\3501.jpg"))
-      .send();
+    if (request.getBody().isPresent()) {
+      UnauthorizedDetection unauthorizedDetection = new Gson().fromJson(request.getBody().get(), UnauthorizedDetection.class);
+      unauthorizedDetection.setDetectionTime(LocalDateTime.now());
+      unauthorizedAccessPersistenceService.createDetection(unauthorizedDetection);
+      administratorPersistenceService.readAll()
+        .stream()
+        .forEach(admin -> notifyAdministrator(unauthorizedDetection, admin.getEmailAddress()));
+      return request.createResponseBuilder(HttpStatus.OK).build();
+    }
+    return request.createResponseBuilder(HttpStatus.BAD_REQUEST).body("Request body is mandatory").build();
+  }
 
-    return request.createResponseBuilder(HttpStatus.OK).body("Hello").build();
+  private void notifyAdministrator(UnauthorizedDetection unauthorizedDetection, String destinationAddress) {
+    try {
+      mailService.withDestinationAddress(destinationAddress)
+        .withSubject(MAIL_SUBJECT)
+        .withBodyText(unauthorizedDetection.getDetectionTime() + " - Rilevato accesso non autorizzato")
+        .withAttachment(createAttachment(unauthorizedDetection))
+        .send();
+    } catch (MessagingException | IOException e) {
+      e.printStackTrace();
+      throw new RuntimeException(e);
+    }
+  }
+
+  private File createAttachment(UnauthorizedDetection unauthorizedDetection) throws IOException {
+    File attachment = File.createTempFile(unauthorizedDetection.getId(), ".jpg");
+    try (FileOutputStream fileOutputStream = new FileOutputStream(attachment)) {
+      fileOutputStream.write(unauthorizedDetection.getBlobContent());
+    }
+    return attachment;
   }
 }

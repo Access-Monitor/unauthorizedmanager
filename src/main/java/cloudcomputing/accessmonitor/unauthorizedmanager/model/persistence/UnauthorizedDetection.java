@@ -13,14 +13,24 @@ public class UnauthorizedDetection {
   @JsonDeserialize(using = LocalDateTimeDeserializer.class)
   @JsonSerialize(using = LocalDateTimeSerializer.class)
   private LocalDateTime detectionTime;
+  private byte[] blobContent;
 
-  public UnauthorizedDetection(String id, String faceId, LocalDateTime detectionTime) {
+  public UnauthorizedDetection(String id, String faceId, LocalDateTime detectionTime, byte[] blobContent) {
     this.id = id;
     this.faceId = faceId;
     this.detectionTime = detectionTime;
+    this.blobContent = blobContent;
   }
 
   public UnauthorizedDetection() {
+  }
+
+  public byte[] getBlobContent() {
+    return blobContent;
+  }
+
+  public void setBlobContent(byte[] blobContent) {
+    this.blobContent = blobContent;
   }
 
   public String getId() {

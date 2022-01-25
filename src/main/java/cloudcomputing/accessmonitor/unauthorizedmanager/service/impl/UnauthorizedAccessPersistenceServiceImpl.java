@@ -6,7 +6,7 @@ import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.Databas
 import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.DatabaseConstants.UNAUTHORIZED_CONTAINER_NAME;
 
 import cloudcomputing.accessmonitor.unauthorizedmanager.model.persistence.UnauthorizedDetection;
-import cloudcomputing.accessmonitor.unauthorizedmanager.service.PersistenceService;
+import cloudcomputing.accessmonitor.unauthorizedmanager.service.UnauthorizedAccessPersistenceService;
 import com.azure.cosmos.ConsistencyLevel;
 import com.azure.cosmos.CosmosClient;
 import com.azure.cosmos.CosmosClientBuilder;
@@ -18,11 +18,11 @@ import com.azure.cosmos.models.CosmosDatabaseResponse;
 import com.azure.cosmos.models.CosmosItemRequestOptions;
 import com.azure.cosmos.models.PartitionKey;
 
-public class PersistenceServiceCosmosDBImpl implements PersistenceService {
+public class UnauthorizedAccessPersistenceServiceImpl implements UnauthorizedAccessPersistenceService {
 
   private final CosmosContainer container;
 
-  public PersistenceServiceCosmosDBImpl() {
+  public UnauthorizedAccessPersistenceServiceImpl() {
     CosmosClient client = new CosmosClientBuilder().endpoint(COSMOSDB_ENDPOINT)
       .key(COSMOSDB_SUBSCRIPTION_KEY)
       .consistencyLevel(ConsistencyLevel.EVENTUAL)
@@ -39,5 +39,4 @@ public class PersistenceServiceCosmosDBImpl implements PersistenceService {
     container.createItem(unauthorizedDetection, new PartitionKey(unauthorizedDetection.getFaceId()),
       new CosmosItemRequestOptions());
   }
-
 }
