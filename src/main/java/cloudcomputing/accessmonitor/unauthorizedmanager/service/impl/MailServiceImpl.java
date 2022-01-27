@@ -12,6 +12,7 @@ import com.sendgrid.helpers.mail.objects.Attachments;
 import com.sendgrid.helpers.mail.objects.Content;
 import com.sendgrid.helpers.mail.objects.Email;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 public class MailServiceImpl implements MailService {
 
@@ -32,11 +33,13 @@ public class MailServiceImpl implements MailService {
     Email to = new Email(destinationAddress);
 
     Attachments attachments = new Attachments();
-    attachments.setContent(new String(attachment));
+    attachments.setContent(new String(attachment, StandardCharsets.UTF_8));
     attachments.setType("image/jpeg");
     attachments.setFilename("detection.jpeg");
+    attachments.setDisposition("attachment");
     Content content = new Content("text/plain", bodyText);
     Mail mail = new Mail(from, subject, to, content);
+    mail.addAttachments(attachments);
 
     Request request = new Request();
     try {
