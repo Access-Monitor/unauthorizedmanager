@@ -1,10 +1,7 @@
 package cloudcomputing.accessmonitor.unauthorizedmanager.service;
 
-import java.io.File;
 import java.io.IOException;
-import java.time.LocalDateTime;
 import javax.mail.MessagingException;
-import javax.mail.internet.AddressException;
 
 public interface MailService {
 
@@ -14,7 +11,9 @@ public interface MailService {
 
   MailService withDestinationAddress(String destinationAddress);
 
-  MailService withAttachment(File attachment);
+  MailService withSourceAddress(String sourceAddress);
+
+  MailService withAttachment(byte[] attachment);
 
   void send() throws MessagingException, IOException;
 }

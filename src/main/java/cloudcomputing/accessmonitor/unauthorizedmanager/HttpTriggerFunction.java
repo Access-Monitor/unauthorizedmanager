@@ -1,5 +1,6 @@
 package cloudcomputing.accessmonitor.unauthorizedmanager;
 
+import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.MailConstants.FROM_MAIL_ADDRESS;
 import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.MailConstants.MAIL_SUBJECT;
 
 import cloudcomputing.accessmonitor.unauthorizedmanager.model.persistence.UnauthorizedDetection;
@@ -60,10 +61,11 @@ public class HttpTriggerFunction {
 
   private void notifyAdministrator(UnauthorizedDetection unauthorizedDetection, String destinationAddress) {
     try {
-      mailService.withDestinationAddress(destinationAddress)
+      mailService.withSourceAddress(FROM_MAIL_ADDRESS)
+        .withDestinationAddress(destinationAddress)
         .withSubject(MAIL_SUBJECT)
         .withBodyText(unauthorizedDetection.getDetectionTime() + " - Rilevato accesso non autorizzato")
-        .withAttachment(createAttachment(unauthorizedDetection))
+        .withAttachment(unauthorizedDetection.getBlobContent())
         .send();
     } catch (MessagingException | IOException e) {
       e.printStackTrace();
@@ -71,11 +73,4 @@ public class HttpTriggerFunction {
     }
   }
 
-  private File createAttachment(UnauthorizedDetection unauthorizedDetection) throws IOException {
-    File attachment = File.createTempFile(unauthorizedDetection.getId(), ".jpg");
-    try (FileOutputStream fileOutputStream = new FileOutputStream(attachment)) {
-      fileOutputStream.write(unauthorizedDetection.getBlobContent());
-    }
-    return attachment;
-  }
 }

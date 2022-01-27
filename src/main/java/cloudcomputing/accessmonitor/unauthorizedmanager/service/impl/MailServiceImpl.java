@@ -1,55 +1,65 @@
 package cloudcomputing.accessmonitor.unauthorizedmanager.service.impl;
 
-import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.MailConstants.FROM_MAIL_ADDRESS;
-import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.MailConstants.FROM_MAIL_PWD;
+import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.MailConstants.SEND_GRID_API_KEY;
 
 import cloudcomputing.accessmonitor.unauthorizedmanager.service.MailService;
-import java.io.File;
+import com.sendgrid.Method;
+import com.sendgrid.Request;
+import com.sendgrid.Response;
+import com.sendgrid.SendGrid;
+import com.sendgrid.helpers.mail.Mail;
+import com.sendgrid.helpers.mail.objects.Attachments;
+import com.sendgrid.helpers.mail.objects.Content;
+import com.sendgrid.helpers.mail.objects.Email;
 import java.io.IOException;
-import java.util.Properties;
-import javax.mail.Authenticator;
-import javax.mail.Message;
-import javax.mail.MessagingException;
-import javax.mail.Multipart;
-import javax.mail.PasswordAuthentication;
-import javax.mail.Session;
-import javax.mail.Transport;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeBodyPart;
-import javax.mail.internet.MimeMessage;
-import javax.mail.internet.MimeMultipart;
 
 public class MailServiceImpl implements MailService {
 
-  private final Message message;
+  private final SendGrid sg;
   private String subject;
   private String bodyText;
-  private File attachment;
   private String destinationAddress;
+  private String sourceAddress;
+  private byte[] attachment;
 
   public MailServiceImpl() {
-    Properties prop = initClientProperties();
-    Session session = clientSignIn(prop);
-    message = new MimeMessage(session);
+    sg = new SendGrid(SEND_GRID_API_KEY);
   }
 
   @Override
-  public void send() throws MessagingException, IOException {
-    message.setFrom(new InternetAddress(FROM_MAIL_ADDRESS));
-    message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(destinationAddress));
-    message.setSubject(subject);
+  public void send() {
+    Email from = new Email(sourceAddress);
+    Email to = new Email(destinationAddress);
 
-    MimeBodyPart bodyTextPart = new MimeBodyPart();
-    bodyTextPart.setContent(bodyText, "text/html; charset=utf-8");
-    MimeBodyPart attachmentPart = new MimeBodyPart();
-    attachmentPart.attachFile(attachment);
+    Attachments attachments = new Attachments();
+    attachments.setContent(new String(attachment));
+    Content content = new Content("text/plain", bodyText);
+    Mail mail = new Mail(from, subject, to, content);
 
-    Multipart multipart = new MimeMultipart();
-    multipart.addBodyPart(bodyTextPart);
-    multipart.addBodyPart(attachmentPart);
+    Request request = new Request();
+    try {
+      request.setMethod(Method.POST);
+      request.setEndpoint("mail/send");
+      request.setBody(mail.build());
+      Response response = sg.api(request);
+      System.out.println(response.getStatusCode());
+      System.out.println(response.getBody());
+      System.out.println(response.getHeaders());
+    } catch (IOException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
 
-    message.setContent(multipart);
-    Transport.send(message);
+  @Override
+  public MailService withSourceAddress(String sourceAddress) {
+    this.sourceAddress = sourceAddress;
+    return this;
+  }
+
+  @Override
+  public MailService withDestinationAddress(String destinationAddress) {
+    this.destinationAddress = destinationAddress;
+    return this;
   }
 
   @Override
@@ -65,32 +75,9 @@ public class MailServiceImpl implements MailService {
   }
 
   @Override
-  public MailService withDestinationAddress(String destinationAddress) {
-    this.destinationAddress = destinationAddress;
-    return this;
-  }
-
-  @Override
-  public MailService withAttachment(File attachment) {
+  public MailService withAttachment(byte[] attachment) {
     this.attachment = attachment;
     return this;
   }
 
-  private Session clientSignIn(Properties prop) {
-    return Session.getInstance(prop, new Authenticator() {
-      @Override
-      protected PasswordAuthentication getPasswordAuthentication() {
-        return new PasswordAuthentication(FROM_MAIL_ADDRESS, FROM_MAIL_PWD);
-      }
-    });
-  }
-
-  private Properties initClientProperties() {
-    Properties prop = new Properties();
-    prop.put("mail.smtp.host", "smtp.gmail.com");
-    prop.put("mail.smtp.port", "587");
-    prop.put("mail.smtp.auth", true);
-    prop.put("mail.smtp.starttls.enable", "true");
-    return prop;
-  }
 }
