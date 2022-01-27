@@ -33,6 +33,8 @@ public class MailServiceImpl implements MailService {
 
     Attachments attachments = new Attachments();
     attachments.setContent(new String(attachment));
+    attachments.setType("image/jpeg");
+    attachments.setFilename("detection.jpeg");
     Content content = new Content("text/plain", bodyText);
     Mail mail = new Mail(from, subject, to, content);
 
