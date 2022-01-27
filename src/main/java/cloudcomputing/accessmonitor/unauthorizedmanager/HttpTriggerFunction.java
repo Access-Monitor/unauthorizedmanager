@@ -19,11 +19,11 @@ import com.microsoft.azure.functions.HttpStatus;
 import com.microsoft.azure.functions.annotation.AuthorizationLevel;
 import com.microsoft.azure.functions.annotation.FunctionName;
 import com.microsoft.azure.functions.annotation.HttpTrigger;
-import java.io.File;
-import java.io.FileOutputStream;
+import com.sendgrid.Response;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.logging.Logger;
 import javax.mail.MessagingException;
 
 public class HttpTriggerFunction {
@@ -36,32 +36,35 @@ public class HttpTriggerFunction {
   @FunctionName("unauthorized")
   public HttpResponseMessage run(@HttpTrigger(name = "req", methods = {HttpMethod.POST}, authLevel = AuthorizationLevel.FUNCTION)
                                    HttpRequestMessage<Optional<String>> request, final ExecutionContext context) {
-    context.getLogger().info("Java HTTP trigger processed a request.");
+    Logger logger = context.getLogger();
+    logger.info("Java HTTP trigger processed a request.");
 
     if (request.getBody().isPresent()) {
       UnauthorizedDetection unauthorizedDetection = new Gson().fromJson(request.getBody().get(), UnauthorizedDetection.class);
       unauthorizedDetection.setDetectionTime(LocalDateTime.now());
-      context.getLogger()
-        .info(String.format("Unauthorized detection with faceId: %s, filename: %s", unauthorizedDetection.getFaceId(),
-          unauthorizedDetection.getId()));
+      logger.info(String.format("Unauthorized detection with faceId: %s, filename: %s", unauthorizedDetection.getFaceId(),
+        unauthorizedDetection.getId()));
 
       unauthorizedAccessPersistenceService.createDetection(unauthorizedDetection);
-      context.getLogger().info("Registered unauthorized detection");
+      logger.info("Registered unauthorized detection");
 
       administratorPersistenceService.readAll()
         .stream()
-        .forEach(admin -> notifyAdministrator(unauthorizedDetection, admin.getEmailAddress()));
-      context.getLogger().info("Sent email notification to administrators");
+        .map(admin -> notifyAdministrator(unauthorizedDetection, admin.getEmailAddress()))
+        .findFirst()
+        .ifPresentOrElse(
+          response -> logger.info("MAIL RESPONSE: status code: " + response.getStatusCode() + " body: " + response.getBody()),
+          () -> logger.info("ERROR, no response received from mail sender"));
 
       return request.createResponseBuilder(HttpStatus.OK).build();
     }
-    context.getLogger().info("Request body is not present");
+    logger.info("Request body is not present");
     return request.createResponseBuilder(HttpStatus.BAD_REQUEST).body("Request body is mandatory").build();
   }
 
-  private void notifyAdministrator(UnauthorizedDetection unauthorizedDetection, String destinationAddress) {
+  private Response notifyAdministrator(UnauthorizedDetection unauthorizedDetection, String destinationAddress) {
     try {
-      mailService.withSourceAddress(FROM_MAIL_ADDRESS)
+      return mailService.withSourceAddress(FROM_MAIL_ADDRESS)
         .withDestinationAddress(destinationAddress)
         .withSubject(MAIL_SUBJECT)
         .withBodyText(unauthorizedDetection.getDetectionTime() + " - Rilevato accesso non autorizzato")

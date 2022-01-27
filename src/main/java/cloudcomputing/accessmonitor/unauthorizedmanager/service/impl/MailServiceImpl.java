@@ -28,28 +28,17 @@ public class MailServiceImpl implements MailService {
   }
 
   @Override
-  public void send() {
-    Email from = new Email(sourceAddress);
-    Email to = new Email(destinationAddress);
+  public Response send() {
 
-    Attachments attachments = new Attachments();
-    attachments.setContent(new String(attachment, StandardCharsets.UTF_8));
-    attachments.setType("image/jpeg");
-    attachments.setFilename("detection.jpeg");
-    attachments.setDisposition("attachment");
-    Content content = new Content("text/plain", bodyText);
-    Mail mail = new Mail(from, subject, to, content);
-    mail.addAttachments(attachments);
+    Mail mail = new Mail(new Email(sourceAddress), subject, new Email(destinationAddress), new Content("text/plain", bodyText));
+    mail.addAttachments(createAttachment());
 
     Request request = new Request();
     try {
       request.setMethod(Method.POST);
       request.setEndpoint("mail/send");
       request.setBody(mail.build());
-      Response response = sg.api(request);
-      System.out.println(response.getStatusCode());
-      System.out.println(response.getBody());
-      System.out.println(response.getHeaders());
+      return sg.api(request);
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     }
@@ -83,6 +72,15 @@ public class MailServiceImpl implements MailService {
   public MailService withAttachment(byte[] attachment) {
     this.attachment = attachment;
     return this;
+  }
+
+  private Attachments createAttachment() {
+    Attachments attachments = new Attachments();
+    attachments.setContent(new String(attachment, StandardCharsets.UTF_8));
+    attachments.setType("image/jpeg");
+    attachments.setFilename("detection.jpeg");
+    attachments.setDisposition("attachment");
+    return attachments;
   }
 
 }
