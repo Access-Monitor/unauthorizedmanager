@@ -28,6 +28,7 @@ import com.sendgrid.Response;
 import java.io.IOException;
 import java.net.http.HttpResponse;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -49,7 +50,7 @@ public class HttpTriggerFunction {
 
     if (request.getBody().isPresent()) {
       UnauthorizedDetection unauthorizedDetection = new Gson().fromJson(request.getBody().get(), UnauthorizedDetection.class);
-      unauthorizedDetection.setDetectionTime(LocalDateTime.now());
+      unauthorizedDetection.setDetectionTime(LocalDateTime.now(ZoneOffset.UTC));
       logger.info(String.format("Unauthorized detection with faceId: %s, filename: %s", unauthorizedDetection.getFaceId(),
         unauthorizedDetection.getId()));
 
