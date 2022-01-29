@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.net.http.HttpResponse;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.mail.MessagingException;
 
@@ -64,21 +65,22 @@ public class HttpTriggerFunction {
         }).filter(identical -> identical).findAny();
 
       faceAlreadyNotified.ifPresentOrElse(
-        face -> logger.info(String.format("FaceId %s has been already notified", unauthorizedDetection.getFaceId())), () -> {
+        face -> logger.log(Level.WARNING, String.format("FaceId %s has been already notified", unauthorizedDetection.getFaceId())),
+        () -> {
           notifyUnauthorizedDetection(unauthorizedDetection, logger);
           registerDetection(unauthorizedDetection, logger);
         });
 
       return request.createResponseBuilder(HttpStatus.OK).build();
     }
-    logger.info("Request body is not present");
+    logger.log(Level.SEVERE, "Request body is not present");
     return request.createResponseBuilder(HttpStatus.BAD_REQUEST).body("Request body is mandatory").build();
   }
 
   private void registerDetection(UnauthorizedDetection unauthorizedDetection, Logger logger) {
     CosmosItemResponse<UnauthorizedDetection> createDetectionResponse =
       unauthorizedAccessPersistenceService.createDetection(unauthorizedDetection);
-    logger.info(String.format("Create Detection Response with status: %s", createDetectionResponse.getStatusCode()));
+    logger.log(Level.INFO, String.format("Create Detection Response with status: %s", createDetectionResponse.getStatusCode()));
   }
 
   private void notifyUnauthorizedDetection(UnauthorizedDetection unauthorizedDetection, Logger logger) {
