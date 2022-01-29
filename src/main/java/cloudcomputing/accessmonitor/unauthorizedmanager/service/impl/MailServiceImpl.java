@@ -11,8 +11,10 @@ import com.sendgrid.helpers.mail.Mail;
 import com.sendgrid.helpers.mail.objects.Attachments;
 import com.sendgrid.helpers.mail.objects.Content;
 import com.sendgrid.helpers.mail.objects.Email;
+import io.netty.handler.codec.base64.Base64Encoder;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 public class MailServiceImpl implements MailService {
 
@@ -76,7 +78,7 @@ public class MailServiceImpl implements MailService {
 
   private Attachments createAttachment() {
     Attachments attachments = new Attachments();
-    attachments.setContent(new String(attachment, StandardCharsets.UTF_8));
+    attachments.setContent(new String(Base64.getEncoder().encode(attachment), StandardCharsets.UTF_8));
     attachments.setType("image/jpeg");
     attachments.setFilename("detection.jpeg");
     attachments.setDisposition("attachment");

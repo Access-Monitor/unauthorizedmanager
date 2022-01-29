@@ -5,12 +5,16 @@ import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.MailCon
 
 import cloudcomputing.accessmonitor.unauthorizedmanager.model.persistence.UnauthorizedDetection;
 import cloudcomputing.accessmonitor.unauthorizedmanager.service.AdministratorPersistenceService;
+import cloudcomputing.accessmonitor.unauthorizedmanager.service.FaceAPIService;
 import cloudcomputing.accessmonitor.unauthorizedmanager.service.MailService;
 import cloudcomputing.accessmonitor.unauthorizedmanager.service.UnauthorizedAccessPersistenceService;
 import cloudcomputing.accessmonitor.unauthorizedmanager.service.impl.AdministratorPersistenceServiceImpl;
+import cloudcomputing.accessmonitor.unauthorizedmanager.service.impl.FaceAPIServiceImpl;
 import cloudcomputing.accessmonitor.unauthorizedmanager.service.impl.MailServiceImpl;
 import cloudcomputing.accessmonitor.unauthorizedmanager.service.impl.UnauthorizedAccessPersistenceServiceImpl;
+import com.azure.cosmos.models.CosmosItemResponse;
 import com.google.gson.Gson;
+import com.microsoft.azure.cognitiveservices.vision.faceapi.models.VerifyResult;
 import com.microsoft.azure.functions.ExecutionContext;
 import com.microsoft.azure.functions.HttpMethod;
 import com.microsoft.azure.functions.HttpRequestMessage;
@@ -21,6 +25,7 @@ import com.microsoft.azure.functions.annotation.FunctionName;
 import com.microsoft.azure.functions.annotation.HttpTrigger;
 import com.sendgrid.Response;
 import java.io.IOException;
+import java.net.http.HttpResponse;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.logging.Logger;
@@ -32,6 +37,7 @@ public class HttpTriggerFunction {
     new UnauthorizedAccessPersistenceServiceImpl();
   private final AdministratorPersistenceService administratorPersistenceService = new AdministratorPersistenceServiceImpl();
   private final MailService mailService = new MailServiceImpl();
+  private final FaceAPIService faceAPIService = new FaceAPIServiceImpl();
 
   @FunctionName("unauthorized")
   public HttpResponseMessage run(@HttpTrigger(name = "req", methods = {HttpMethod.POST}, authLevel = AuthorizationLevel.FUNCTION)
@@ -45,16 +51,19 @@ public class HttpTriggerFunction {
       logger.info(String.format("Unauthorized detection with faceId: %s, filename: %s", unauthorizedDetection.getFaceId(),
         unauthorizedDetection.getId()));
 
-      unauthorizedAccessPersistenceService.createDetection(unauthorizedDetection);
-      logger.info("Registered unauthorized detection");
+      Optional<Boolean> faceAlreadyNotified =
+        unauthorizedAccessPersistenceService.lastNotifiedDetections().stream().map(lastDetection -> {
+          HttpResponse<String> verifyResponse =
+            faceAPIService.faceVerify(lastDetection.getFaceId(), unauthorizedDetection.getFaceId());
+          VerifyResult verifyResult = new Gson().fromJson(verifyResponse.body(), VerifyResult.class);
+          return verifyResult.isIdentical();
+        }).filter(identical -> identical).findAny();
 
-      administratorPersistenceService.readAll()
-        .stream()
-        .map(admin -> notifyAdministrator(unauthorizedDetection, admin.getEmailAddress()))
-        .findFirst()
-        .ifPresentOrElse(
-          response -> logger.info("MAIL RESPONSE: status code: " + response.getStatusCode() + " body: " + response.getBody()),
-          () -> logger.info("ERROR, no response received from mail sender"));
+      faceAlreadyNotified.ifPresentOrElse(
+        face -> logger.info(String.format("FaceId %s has been already notified", unauthorizedDetection.getFaceId())), () -> {
+          notifyUnauthorizedDetection(unauthorizedDetection, logger);
+          registerDetection(unauthorizedDetection, logger);
+        });
 
       return request.createResponseBuilder(HttpStatus.OK).build();
     }
@@ -62,7 +71,25 @@ public class HttpTriggerFunction {
     return request.createResponseBuilder(HttpStatus.BAD_REQUEST).body("Request body is mandatory").build();
   }
 
-  private Response notifyAdministrator(UnauthorizedDetection unauthorizedDetection, String destinationAddress) {
+  private void registerDetection(UnauthorizedDetection unauthorizedDetection, Logger logger) {
+    CosmosItemResponse<UnauthorizedDetection> createDetectionResponse =
+      unauthorizedAccessPersistenceService.createDetection(unauthorizedDetection);
+    logger.info(String.format("Create Detection Response with status: %s", createDetectionResponse.getStatusCode()));
+  }
+
+  private void notifyUnauthorizedDetection(UnauthorizedDetection unauthorizedDetection, Logger logger) {
+    logger.info("Notifying unauthorized detection");
+    unauthorizedDetection.setNotified(true);
+    administratorPersistenceService.readAll()
+      .stream()
+      .map(admin -> buildAndSendMail(unauthorizedDetection, admin.getEmailAddress()))
+      .findFirst()
+      .ifPresentOrElse(
+        response -> logger.info("MAIL RESPONSE: status code: " + response.getStatusCode() + " body: " + response.getBody()),
+        () -> logger.info("ERROR, no response received from mail sender"));
+  }
+
+  private Response buildAndSendMail(UnauthorizedDetection unauthorizedDetection, String destinationAddress) {
     try {
       return mailService.withSourceAddress(FROM_MAIL_ADDRESS)
         .withDestinationAddress(destinationAddress)
