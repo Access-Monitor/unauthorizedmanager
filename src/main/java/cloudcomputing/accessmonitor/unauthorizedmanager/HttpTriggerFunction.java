@@ -1,5 +1,6 @@
 package cloudcomputing.accessmonitor.unauthorizedmanager;
 
+import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.DatabaseConstants.MIN_TIME_FOR_NOTIFICATION;
 import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.MailConstants.FROM_MAIL_ADDRESS;
 import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.MailConstants.MAIL_SUBJECT;
 
@@ -53,10 +54,13 @@ public class HttpTriggerFunction {
 
       Optional<Boolean> faceAlreadyNotified =
         unauthorizedAccessPersistenceService.lastNotifiedDetections().stream().map(lastDetection -> {
+          logger.info(
+            String.format("Notified detection in past %s minutes found: faceId %s, filename %s", MIN_TIME_FOR_NOTIFICATION,
+              lastDetection.getFaceId(), lastDetection.getId()));
+
           HttpResponse<String> verifyResponse =
             faceAPIService.faceVerify(lastDetection.getFaceId(), unauthorizedDetection.getFaceId());
-          VerifyResult verifyResult = new Gson().fromJson(verifyResponse.body(), VerifyResult.class);
-          return verifyResult.isIdentical();
+          return new Gson().fromJson(verifyResponse.body(), VerifyResult.class).isIdentical();
         }).filter(identical -> identical).findAny();
 
       faceAlreadyNotified.ifPresentOrElse(
@@ -78,8 +82,8 @@ public class HttpTriggerFunction {
   }
 
   private void notifyUnauthorizedDetection(UnauthorizedDetection unauthorizedDetection, Logger logger) {
-    logger.info("Notifying unauthorized detection");
-    unauthorizedDetection.setNotified(true);
+    logger.info(String.format("Notifying unauthorized detection with faceId: %s, filename: %s", unauthorizedDetection.getFaceId(),
+      unauthorizedDetection.getId()));
     administratorPersistenceService.readAll()
       .stream()
       .map(admin -> buildAndSendMail(unauthorizedDetection, admin.getEmailAddress()))
@@ -87,6 +91,7 @@ public class HttpTriggerFunction {
       .ifPresentOrElse(
         response -> logger.info("MAIL RESPONSE: status code: " + response.getStatusCode() + " body: " + response.getBody()),
         () -> logger.info("ERROR, no response received from mail sender"));
+    unauthorizedDetection.setNotified(true);
   }
 
   private Response buildAndSendMail(UnauthorizedDetection unauthorizedDetection, String destinationAddress) {
