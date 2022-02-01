@@ -14,7 +14,7 @@ public interface MailService {
 
   MailService withSourceAddress(String sourceAddress);
 
-  MailService withAttachment(byte[] attachment);
+  MailService withAttachment(String attachment);
 
   Response send() throws MessagingException, IOException;
 }

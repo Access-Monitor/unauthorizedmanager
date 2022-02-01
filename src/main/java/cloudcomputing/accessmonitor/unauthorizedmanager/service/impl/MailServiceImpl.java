@@ -11,10 +11,7 @@ import com.sendgrid.helpers.mail.Mail;
 import com.sendgrid.helpers.mail.objects.Attachments;
 import com.sendgrid.helpers.mail.objects.Content;
 import com.sendgrid.helpers.mail.objects.Email;
-import io.netty.handler.codec.base64.Base64Encoder;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 
 public class MailServiceImpl implements MailService {
 
@@ -23,7 +20,7 @@ public class MailServiceImpl implements MailService {
   private String bodyText;
   private String destinationAddress;
   private String sourceAddress;
-  private byte[] attachment;
+  private String attachment;
 
   public MailServiceImpl() {
     sg = new SendGrid(SEND_GRID_API_KEY);
@@ -71,14 +68,14 @@ public class MailServiceImpl implements MailService {
   }
 
   @Override
-  public MailService withAttachment(byte[] attachment) {
+  public MailService withAttachment(String attachment) {
     this.attachment = attachment;
     return this;
   }
 
   private Attachments createAttachment() {
     Attachments attachments = new Attachments();
-    attachments.setContent(new String(Base64.getEncoder().encode(attachment), StandardCharsets.UTF_8));
+    attachments.setContent(attachment);
     attachments.setType("image/jpeg");
     attachments.setFilename("detection.jpeg");
     attachments.setDisposition("attachment");
