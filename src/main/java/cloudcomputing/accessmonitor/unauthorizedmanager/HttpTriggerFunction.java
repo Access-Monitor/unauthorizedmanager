@@ -88,23 +88,21 @@ public class HttpTriggerFunction {
     logger.info(String.format("Notifying unauthorized detection with faceId: %s, filename: %s", unauthorizedDetection.getFaceId(),
       unauthorizedDetection.getId()));
     administratorPersistenceService.readAll()
-      .stream()
-      .map(admin -> buildAndSendMail(unauthorizedDetection, admin.getEmailAddress()))
-      .findFirst()
-      .ifPresentOrElse(
-        response -> logger.info("MAIL RESPONSE: status code: " + response.getStatusCode() + " body: " + response.getBody()),
-        () -> logger.info("ERROR, no response received from mail sender"));
+      .forEach(admin -> buildAndSendMail(unauthorizedDetection, admin.getEmailAddress(), logger));
     unauthorizedDetection.setNotified(true);
   }
 
-  private Response buildAndSendMail(UnauthorizedDetection unauthorizedDetection, String destinationAddress) {
+  private void buildAndSendMail(UnauthorizedDetection unauthorizedDetection, String destinationAddress, Logger logger) {
     try {
-      return mailService.withSourceAddress(FROM_MAIL_ADDRESS)
+      logger.info(String.format("Attempting to send unauthorized mail notification to admin %s", destinationAddress));
+      Response sendResponse = mailService.withSourceAddress(FROM_MAIL_ADDRESS)
         .withDestinationAddress(destinationAddress)
         .withSubject(MAIL_SUBJECT)
         .withBodyText(unauthorizedDetection.getDetectionTime() + " - Rilevato accesso non autorizzato")
         .withAttachment(unauthorizedDetection.getBlobContent())
         .send();
+      logger.info(
+        String.format("MAIL RESPONSE: status code: %s and body: %s", sendResponse.getStatusCode(), sendResponse.getBody()));
     } catch (MessagingException | IOException e) {
       e.printStackTrace();
       throw new RuntimeException(e);
