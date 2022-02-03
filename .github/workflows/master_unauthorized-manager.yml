@@ -38,6 +38,6 @@ jobs:
         with:
           app-name: 'unauthorized-manager'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_ED529DC07BC541B889390B657546EEA7 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_9F0E1EAC6DE34C3D8B338376FCC4E3AA }}
           package: '${{ env.PACKAGE_DIRECTORY }}'
           respect-pom-xml: true
