@@ -14,39 +14,29 @@ public class UnauthorizedDetection {
   @JsonDeserialize(using = LocalDateTimeDeserializer.class)
   @JsonSerialize(using = LocalDateTimeSerializer.class)
   private LocalDateTime detectionTime;
-  private String blobContent;
   private long detectionTimestamp;
-  private boolean notified;
+  private String filename;
 
-  public UnauthorizedDetection(String id, String faceId, LocalDateTime detectionTime, String blobContent) {
+  public UnauthorizedDetection(String id, String faceId, LocalDateTime detectionTime, String filename) {
     this.id = id;
     this.faceId = faceId;
     this.detectionTime = detectionTime;
-    this.blobContent = blobContent;
-    this.notified = false;
+    this.filename = filename;
   }
 
   public UnauthorizedDetection() {
-  }
-
-  public boolean isNotified() {
-    return notified;
-  }
-
-  public void setNotified(boolean notified) {
-    this.notified = notified;
   }
 
   public long getDetectionTimestamp() {
     return detectionTimestamp;
   }
 
-  public String getBlobContent() {
-    return blobContent;
+  public String getFilename() {
+    return filename;
   }
 
-  public void setBlobContent(String blobContent) {
-    this.blobContent = blobContent;
+  public void setFilename(String filename) {
+    this.filename = filename;
   }
 
   public String getId() {

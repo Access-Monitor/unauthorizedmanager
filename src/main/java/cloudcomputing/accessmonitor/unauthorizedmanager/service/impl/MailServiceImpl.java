@@ -30,7 +30,9 @@ public class MailServiceImpl implements MailService {
   public Response send() {
 
     Mail mail = new Mail(new Email(sourceAddress), subject, new Email(destinationAddress), new Content("text/plain", bodyText));
-    mail.addAttachments(createAttachment());
+    if (!attachment.isEmpty()) {
+      mail.addAttachments(createAttachment());
+    }
 
     Request request = new Request();
     try {

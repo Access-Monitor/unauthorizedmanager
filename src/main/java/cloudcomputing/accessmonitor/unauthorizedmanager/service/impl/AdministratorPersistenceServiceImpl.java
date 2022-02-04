@@ -1,9 +1,9 @@
 package cloudcomputing.accessmonitor.unauthorizedmanager.service.impl;
 
-import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.DatabaseConstants.ADMINISTRATORS_CONTAINER_NAME;
-import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.DatabaseConstants.COSMOSDB_ENDPOINT;
-import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.DatabaseConstants.COSMOSDB_SUBSCRIPTION_KEY;
-import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.DatabaseConstants.DATABASE_NAME;
+import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.StorageConstants.ADMINISTRATORS_CONTAINER_NAME;
+import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.StorageConstants.COSMOSDB_ENDPOINT;
+import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.StorageConstants.COSMOSDB_SUBSCRIPTION_KEY;
+import static cloudcomputing.accessmonitor.unauthorizedmanager.constants.StorageConstants.DATABASE_NAME;
 
 import cloudcomputing.accessmonitor.unauthorizedmanager.model.persistence.Administrator;
 import cloudcomputing.accessmonitor.unauthorizedmanager.service.AdministratorPersistenceService;
